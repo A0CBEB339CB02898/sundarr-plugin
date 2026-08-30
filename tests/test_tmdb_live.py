@@ -15,7 +15,7 @@ from sqlalchemy.pool import StaticPool
 from sundarr.app import models  # noqa: F401
 from sundarr.app.core.database import Base, get_db
 from sundarr.app.main import create_app
-from sundarr.app.plugins.activator import PluginActivator
+from sundarr.app.plugins.activator import CandidateActivationError, PluginActivator
 from sundarr.app.plugins.conformance import (
     CatalogConformanceProbe,
     run_catalog_provider_conformance,
@@ -29,6 +29,28 @@ from sundarr.app.services.catalog_cache import catalog_cache
 
 pytestmark = pytest.mark.live
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_tmdb_real_endpoint_rejects_invalid_token_safely() -> None:
+    invalid_token = "definitely-invalid-live-smoke-token"
+    catalog_provider_registry.clear()
+    loader = PluginLoader(repos_dir=ROOT / ".live-cache")
+    manifest = loader.parse_manifests(ROOT)[0]
+    with pytest.raises(CandidateActivationError) as captured:
+        asyncio.run(
+            PluginActivator(loader=loader).activate_candidate(
+                manifest,
+                ROOT,
+                plugin_config={"api_read_access_token": invalid_token},
+                repository_id="sundarr-plugin-live-auth-failure",
+                commit_hash="working-tree",
+            )
+        )
+    catalog_provider_registry.clear()
+
+    message = str(captured.value)
+    assert "认证失败" in message
+    assert invalid_token not in message
 
 
 def test_tmdb_real_data_conformance_and_core_api(monkeypatch: pytest.MonkeyPatch) -> None:
