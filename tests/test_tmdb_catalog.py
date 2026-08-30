@@ -314,6 +314,28 @@ def test_continuation_token_resumes_inside_page_and_binds_query() -> None:
     asyncio.run(run())
 
 
+def test_trending_continuation_stays_inside_single_remote_response() -> None:
+    async def run() -> None:
+        client = FixtureHttpClient()
+        provider = await _provider(client)
+        first = await provider.trending(CatalogQuery(limit=1))
+        assert first.continuation_token
+        second = await provider.trending(
+            CatalogQuery(limit=10, continuation_token=first.continuation_token)
+        )
+        assert second.items
+        assert second.continuation_token is None
+        trending_calls = [
+            query
+            for path, query, _headers in client.calls
+            if path.endswith("/trending/all/day")
+        ]
+        assert trending_calls
+        assert all("page" not in query for query in trending_calls)
+
+    asyncio.run(run())
+
+
 def test_categories_maps_filters_sort_and_mixes_movie_with_series() -> None:
     async def run() -> None:
         client = FixtureHttpClient()

@@ -103,7 +103,8 @@ Core 只看到不透明 `continuation_token`。插件内部 Token 包含版本�
 
 - Token 与当前查询不匹配时明确报错。
 - `limit < 20` 时可以从同一 TMDb 页继续。
-- `limit > 20` 时最多请求满足 limit 所需的连续页面。
+- 搜索和分类在 `limit > 20` 时最多请求满足 limit 所需的连续页面。
+- TMDb trending 接口没有声明远程 `page` 参数；插件只允许在该次返回的结果数组内继续，不请求伪造的第 2 页，耗尽后返回 `None`。
 - 到达 `total_pages` 或没有剩余结果时返回 `None`。
 
 Token 不包含 API Token、完整请求 URL 或用户隐私数据。

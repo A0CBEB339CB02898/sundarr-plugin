@@ -191,6 +191,7 @@ class TmdbCatalogProvider:
             params={"language": self._language},
             query=query,
             fixed_media_type=fixed_type,
+            supports_remote_pages=False,
         )
 
     async def categories(self, query: CatalogQuery) -> CatalogPage:
@@ -359,6 +360,7 @@ class TmdbCatalogProvider:
         query: CatalogQuery,
         fixed_media_type: MediaType | None,
         apply_local_filters: bool = True,
+        supports_remote_pages: bool = True,
     ) -> CatalogPage:
         signature = _query_signature(operation, query, params)
         state = _decode_page_token(query.continuation_token, signature)
@@ -369,8 +371,11 @@ class TmdbCatalogProvider:
         requests = 0
 
         while len(items) < query.limit and requests < _MAX_REQUESTS_PER_CALL:
+            request_params = dict(params)
+            if supports_remote_pages:
+                request_params["page"] = page_number
             payload = _require_mapping(
-                await self._request(endpoint, {**params, "page": page_number}),
+                await self._request(endpoint, request_params),
                 operation,
             )
             requests += 1
@@ -406,6 +411,8 @@ class TmdbCatalogProvider:
             if len(items) >= query.limit and consumed_index < len(raw_results):
                 continuation = _encode_page_token(signature, page_number, consumed_index)
                 return CatalogPage(items=tuple(items), continuation_token=continuation)
+            if not supports_remote_pages:
+                return CatalogPage(items=tuple(items), continuation_token=None)
             page_number += 1
             offset = 0
             if page_number > total_pages:
