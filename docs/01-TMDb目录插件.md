@@ -120,7 +120,7 @@ Token 不包含 API Token、完整请求 URL 或用户隐私数据。
 - 空结果、无图片、无日期、无评分和非法响应。
 - Token 不进入日志与错误。
 
-显式实时测试使用环境变量 `TMDB_API_READ_ACCESS_TOKEN`，覆盖搜索、热门、分类、详情和 Core conformance runner。默认 `pytest` 通过 marker 排除实时测试；显式执行命令为 `python -m pytest -o addopts= -m live`。没有 Token 时实时测试必须明确跳过，不能以 fixture 代替里程碑真实验收。
+显式实时测试使用环境变量 `TMDB_API_READ_ACCESS_TOKEN`，覆盖搜索、热门、分类、详情、Core conformance runner，以及插件经 Activation / Registry 后的 Core `/discover` API 与数据库身份归一化。默认 `pytest` 通过 marker 排除实时测试；显式执行命令为 `python -m pytest -o addopts= -m live`。没有 Token 时实时测试必须明确跳过，不能以 fixture 代替里程碑真实验收。Web Console 海报墙和详情页仍需在同一真实 Provider 配置下单独做浏览器冒烟，API 测试不能替代页面验收。
 
 ## 8. 里程碑验收
 
