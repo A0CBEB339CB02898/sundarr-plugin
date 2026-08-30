@@ -16,25 +16,19 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库基线已经完成，当前正在交付首个真实插件 TMDb `CATALOG_PROVIDER`。实现与验收边界见 [`docs/01-TMDb目录插件.md`](docs/01-TMDb目录插件.md)。
-
-正式 `sundarr_plugin.toml` 将与可激活的 TMDb 实现一并加入，避免用不可运行的占位声明制造虚假可用状态。
+仓库基线、TMDb `CATALOG_PROVIDER` 实现、Manifest v2 和离线合同测试已经完成。当前尚缺有效 Token 下的真实数据端到端验收，因此还不能把插件标记为生产验收通过，也不能据此冻结 Plugin API v2。实现与验收边界见 [`docs/01-TMDb目录插件.md`](docs/01-TMDb目录插件.md)。
 
 ## 目标结构
 
 ```text
 sundarr-plugin/
 ├── sundarr_plugin.toml          # 通用 Manifest v2
-├── plugins/
-│   ├── tmdb_catalog/
-│   ├── douban_catalog/
-│   └── douban_watchlist/
+├── plugin_entry.py              # 仓库根加载入口
 ├── src/
 │   └── sundarr_official_plugins/
-├── tests/
-│   ├── offline/
-│   └── live/
-└── docs/
+│       └── tmdb_catalog/
+├── tests/                       # 离线测试与显式实时测试
+└── docs/                        # 插件规格和验收边界
 ```
 
 同一仓库中的插件共享 Git commit 和仓库级原子更新边界，但每个插件必须拥有独立 `plugin_id`、配置、启停、健康检查和错误状态。
@@ -74,7 +68,7 @@ TMDb 实时测试从环境变量读取 API Read Access Token：
 
 ```powershell
 $env:TMDB_API_READ_ACCESS_TOKEN = "<仅当前终端使用>"
-python -m pytest -m live
+python -m pytest -o addopts= -m live
 ```
 
 不要把 Token 写入 `.env`、测试参数、命令历史示例或提交文件。

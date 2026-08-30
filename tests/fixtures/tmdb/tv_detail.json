@@ -1,0 +1,17 @@
+{
+  "id": 1399,
+  "name": "权力的游戏",
+  "original_name": "Game of Thrones",
+  "first_air_date": "2011-04-17",
+  "genres": [
+    {"id": 18, "name": "剧情"},
+    {"id": 10765, "name": "科幻奇幻"}
+  ],
+  "origin_country": ["US"],
+  "overview": "多方势力争夺王座。",
+  "poster_path": "/got-poster.jpg",
+  "backdrop_path": "/got-backdrop.jpg",
+  "vote_average": 8.5,
+  "vote_count": 24000,
+  "external_ids": {"imdb_id": "tt0944947"}
+}

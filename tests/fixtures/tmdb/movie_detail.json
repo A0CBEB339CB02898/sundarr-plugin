@@ -1,0 +1,20 @@
+{
+  "id": 603,
+  "title": "黑客帝国",
+  "original_title": "The Matrix",
+  "release_date": "1999-03-30",
+  "genres": [
+    {"id": 28, "name": "动作"},
+    {"id": 878, "name": "科幻"}
+  ],
+  "production_countries": [
+    {"iso_3166_1": "US", "name": "United States of America"}
+  ],
+  "overview": "一名黑客发现现实世界并非表面所见。",
+  "poster_path": "/matrix-poster.jpg",
+  "backdrop_path": "/matrix-backdrop.jpg",
+  "vote_average": 8.2,
+  "vote_count": 26000,
+  "imdb_id": "tt0133093",
+  "external_ids": {"imdb_id": "tt0133093"}
+}

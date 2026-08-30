@@ -21,3 +21,7 @@ packages = ["src/sundarr_official_plugins"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 cache_dir = ".pytest_cache"
+addopts = "-m 'not live'"
+markers = [
+  "live: 访问真实外部服务的显式集成测试",
+]
