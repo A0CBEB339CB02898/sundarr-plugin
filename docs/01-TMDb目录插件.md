@@ -11,7 +11,7 @@
 | `include_adult` | boolean | 否 | `false` | 是否包含成人内容，默认关闭 |
 | `image_size` | select | 否 | `w500` | 海报和背景图尺寸 |
 
-Token 只能保存在 Sundarr `PluginConfig` 中，Manifest、fixture、日志和异常不得包含真实值。
+正式运行 Token 只能通过 Sundarr Web Console / Core 配置 API 保存在 `PluginConfig` 中，Manifest、fixture、日志和异常不得包含真实值。Core 负责敏感字段静态加密和脱敏；插件不能直接访问数据库。
 
 插件能力描述必须提供 TMDb 来源署名：链接到 `https://www.themoviedb.org`，使用 TMDb 官方批准的标识，并展示官方要求的非背书声明。Sundarr 仅把这些值作为通用 `CatalogAttribution` 返回，Core 不硬编码 TMDb 专用字段。运营者仍需根据项目用途自行确认适用许可；未来 AI Tool API 不得自动把 TMDb 数据用于模型训练或未经复核的 AI 场景。
 
@@ -133,7 +133,7 @@ Token 不包含 API Token、完整请求 URL 或用户隐私数据。
 - 空结果、无图片、无日期、无评分和非法响应。
 - Token 不进入日志与错误。
 
-显式实时测试包含一条不需要凭据的真实端点认证失败冒烟，用于验证网络、TLS、Core HTTP 客户端、错误映射和脱敏；有效数据测试使用环境变量 `TMDB_API_READ_ACCESS_TOKEN`，覆盖搜索、热门、分类、详情、Core conformance runner，以及插件经 Activation / Registry 后的 Core `/discover` API 与数据库身份归一化。默认 `pytest` 通过 marker 排除实时测试；显式执行命令为 `python -m pytest -o addopts= -m live`。没有 Token 时有效数据测试必须明确跳过，不能以认证失败冒烟或 fixture 代替里程碑真实验收。Web Console 海报墙和详情页仍需在同一真实 Provider 配置下单独做浏览器冒烟，API 测试不能替代页面验收。
+显式实时测试包含一条不需要凭据的真实端点认证失败冒烟，用于验证网络、TLS、Core HTTP 客户端、错误映射和脱敏；有效数据测试使用当前测试进程的环境变量 `TMDB_API_READ_ACCESS_TOKEN`，覆盖搜索、热门、分类、详情、Core conformance runner，以及插件经 Activation / Registry 后的 Core `/discover` API 与数据库身份归一化。该环境变量只用于隔离测试，不是 Sundarr 正式运行配置入口。默认 `pytest` 通过 marker 排除实时测试；显式执行命令为 `python -m pytest -o addopts= -m live`。没有 Token 时有效数据测试必须明确跳过，不能以认证失败冒烟或 fixture 代替里程碑真实验收。Web Console 海报墙和详情页仍需使用由 `/app/plugins` 保存的同一真实 Provider 配置单独做浏览器冒烟，API 测试不能替代页面验收。
 
 ## 8. 里程碑验收
 

@@ -37,7 +37,7 @@ sundarr-plugin/
 
 - 只依赖 Sundarr Core 公开插件合同，不导入 ORM、服务层或 Worker 私有实现。
 - 默认 `pytest` 只运行离线 fixture 和合同测试。
-- 实时测试通过显式命令运行，凭据只从环境变量读取。
+- 仓库级实时测试通过显式命令运行，凭据只从当前测试进程环境变量读取；这不是 Sundarr 正式运行时的配置方式。
 - 插件开发必须使用真实数据持续回归 Core，但实时外部服务不能成为默认自动化测试依赖。
 - TMDb 电影与剧集使用精确身份命名空间，例如 `tmdb.movie` 和 `tmdb.tv`，避免同号 ID 错误合并。
 
@@ -72,6 +72,8 @@ python -m pytest -o addopts= -m live
 ```
 
 不要把 Token 写入 `.env`、测试参数、命令历史示例或提交文件。
+
+上述环境变量只服务于不修改用户数据库的独立测试。正式运行时应在 Sundarr `/app/plugins` 中配置 `tmdb-catalog`，由 Core 配置 API 持久化到 `PluginConfig`；插件仓库本身不读取宿主 API / Worker 环境变量作为运行配置。
 
 ## 相关仓库
 
