@@ -137,10 +137,14 @@ Token 不包含 API Token、完整请求 URL 或用户隐私数据。
 
 ## 8. 里程碑验收
 
-- `sundarr-plugin` 默认离线测试全绿。
-- 真实 TMDb conformance runner 全绿。
-- Core 从锁定 commit 激活 `tmdb-catalog`。
-- `/discover/providers`、搜索、热门、分类和详情 API 使用真实数据通过。
-- `/app/discover` 海报墙和详情页使用真实数据通过。
-- Core 全量 `pytest` 与前端生产构建通过。
-- 修正真实数据暴露的通用合同问题后，才能冻结 Plugin API v2。
+本里程碑已于 2026-08-31 通过：
+
+- `sundarr-plugin` 默认离线测试 `17 passed / 2 deselected`。
+- 真实 TMDb 测试 `2 passed`，包括有效数据与无效认证路径。
+- Core 从锁定 commit `f83f43d` 激活 `tmdb-catalog`。
+- `/discover/providers`、搜索、热门电影/剧集、题材/地区/年份分类、详情和分页续页使用真实数据通过。
+- `/app/discover` 海报墙、URL 查询状态和详情页使用真实数据通过，海报没有加载失败。
+- Provider 禁用后详情返回 PostgreSQL 最小快照并标记 `degraded=true`，恢复启用后重新进入 active。
+- 正式 Token 由 `/app/plugins` 写入 `PluginConfig`，敏感配置使用数据库外主密钥静态加密，API 只返回脱敏值。
+- Core 全量测试 `265 passed`，前端生产构建通过。
+- Plugin API v2 已冻结；后续必须保持向后兼容，破坏性变更需要新的协议版本。

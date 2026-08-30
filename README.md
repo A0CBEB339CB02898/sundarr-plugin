@@ -16,7 +16,7 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库基线、TMDb `CATALOG_PROVIDER` 实现、Manifest v2 和离线合同测试已经完成。当前尚缺有效 Token 下的真实数据端到端验收，因此还不能把插件标记为生产验收通过，也不能据此冻结 Plugin API v2。实现与验收边界见 [`docs/01-TMDb目录插件.md`](docs/01-TMDb目录插件.md)。
+仓库基线、TMDb `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31 已使用有效凭据通过实时测试、Core `/discover`、Web Console 海报墙/详情、分页和降级验收；Plugin API v2 已据此冻结。当前仓库的下一项交付是豆瓣可选目录插件，但总体 Phase 10.3 会先在独立 `sundarr-sources` 仓库完成 SeedHub SOURCE v2。实现与验收边界见 [`docs/01-TMDb目录插件.md`](docs/01-TMDb目录插件.md)。
 
 ## 目标结构
 
