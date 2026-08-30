@@ -193,6 +193,8 @@ def test_activated_tmdb_runs_through_core_discover_api(monkeypatch: pytest.Monke
             "year",
         ]
         assert providers.json()[0]["operation_sorts"]["search"] == []
+        assert providers.json()[0]["attribution"]["provider_name"] == "TMDB"
+        assert providers.json()[0]["attribution"]["logo_url"].endswith(".svg")
 
         search = api.get(
             "/discover/search",
@@ -239,6 +241,12 @@ def test_capabilities_are_built_from_runtime_genres_and_countries() -> None:
     )
     assert capabilities.sorts_for(CatalogOperation.SEARCH) == frozenset()
     assert capabilities.sorts_for(CatalogOperation.CATEGORIES) == frozenset(CatalogSort)
+    assert capabilities.attribution is not None
+    assert capabilities.attribution.provider_name == "TMDB"
+    assert capabilities.attribution.homepage_url == "https://www.themoviedb.org"
+    assert "not endorsed or certified" in capabilities.attribution.notice
+    assert capabilities.attribution.logo_url is not None
+    assert capabilities.attribution.logo_url.endswith(".svg")
     genre_values = {item.value for item in capabilities.filter_options[CatalogFilter.GENRE]}
     region_values = {item.value for item in capabilities.filter_options[CatalogFilter.REGION]}
     assert {"18", "28", "10765"}.issubset(genre_values)

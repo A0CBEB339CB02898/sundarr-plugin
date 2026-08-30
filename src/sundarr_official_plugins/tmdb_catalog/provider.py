@@ -15,6 +15,7 @@ from typing import Any, Protocol
 from urllib.parse import urlencode
 
 from sundarr.app.plugins.contracts import (
+    CatalogAttribution,
     CatalogCapabilities,
     CatalogFilter,
     CatalogFilterOption,
@@ -131,6 +132,19 @@ class TmdbCatalogProvider:
                 CatalogOperation.TRENDING: frozenset(),
                 CatalogOperation.CATEGORIES: frozenset(CatalogSort),
             },
+            attribution=CatalogAttribution(
+                provider_name="TMDB",
+                homepage_url="https://www.themoviedb.org",
+                notice=(
+                    "This product uses the TMDB API but is not endorsed or "
+                    "certified by TMDB."
+                ),
+                logo_url=(
+                    "https://www.themoviedb.org/assets/2/v4/logos/v2/"
+                    "blue_long_2-9665a76b1ae401a510ec1e0ca40ddcb3b0cfe45f1d51b77a"
+                    "308fea0845885648.svg"
+                ),
+            ),
             identity_namespaces=frozenset({"tmdb.movie", "tmdb.tv"}),
             filter_options={
                 CatalogFilter.GENRE: genre_options,

@@ -13,6 +13,8 @@
 
 Token 只能保存在 Sundarr `PluginConfig` 中，Manifest、fixture、日志和异常不得包含真实值。
 
+插件能力描述必须提供 TMDb 来源署名：链接到 `https://www.themoviedb.org`，使用 TMDb 官方批准的标识，并展示官方要求的非背书声明。Sundarr 仅把这些值作为通用 `CatalogAttribution` 返回，Core 不硬编码 TMDb 专用字段。运营者仍需根据项目用途自行确认适用许可；未来 AI Tool API 不得自动把 TMDb 数据用于模型训练或未经复核的 AI 场景。
+
 ## 2. 官方接口映射
 
 | Sundarr 操作 | TMDb v3 接口 |

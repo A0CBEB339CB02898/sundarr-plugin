@@ -134,6 +134,8 @@ def test_tmdb_real_data_conformance_and_core_api(monkeypatch: pytest.MonkeyPatch
             "year",
         ]
         assert providers.json()[0]["operation_sorts"]["search"] == []
+        assert providers.json()[0]["attribution"]["provider_name"] == "TMDB"
+        assert "not endorsed or certified" in providers.json()[0]["attribution"]["notice"]
 
         search = api.get(
             "/discover/search",
