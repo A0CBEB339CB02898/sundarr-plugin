@@ -16,15 +16,15 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库目前处于初始化阶段，尚未交付真实插件。首个计划插件是 TMDb `CATALOG_PROVIDER`。
+仓库基线已经完成，当前正在交付首个真实插件 TMDb `CATALOG_PROVIDER`。实现与验收边界见 [`docs/01-TMDb目录插件.md`](docs/01-TMDb目录插件.md)。
 
-当前没有提交 `sundarr_plugin.toml`：Sundarr Manifest v2 要求至少包含一个真实、可激活的 `[[plugins]]` 声明。首个 TMDb 插件实现时将同时加入正式 Manifest，避免用不可运行的占位插件制造虚假可用状态。
+正式 `sundarr_plugin.toml` 将与可激活的 TMDb 实现一并加入，避免用不可运行的占位声明制造虚假可用状态。
 
 ## 目标结构
 
 ```text
 sundarr-plugin/
-├── sundarr_plugin.toml          # 首个真实插件落地时加入
+├── sundarr_plugin.toml          # 通用 Manifest v2
 ├── plugins/
 │   ├── tmdb_catalog/
 │   ├── douban_catalog/
@@ -58,7 +58,26 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
-开发真实插件时，还需要让当前环境可以导入同版本 Sundarr Core 的公共合同。具体方式和实时测试命令将在首个 TMDb 插件交付时补充。
+开发真实插件时，还需要让当前环境可以导入同版本 Sundarr Core 的公共合同：
+
+```powershell
+python -m pip install -e "..\sundarr"
+```
+
+默认离线测试：
+
+```powershell
+python -m pytest
+```
+
+TMDb 实时测试从环境变量读取 API Read Access Token：
+
+```powershell
+$env:TMDB_API_READ_ACCESS_TOKEN = "<仅当前终端使用>"
+python -m pytest -m live
+```
+
+不要把 Token 写入 `.env`、测试参数、命令历史示例或提交文件。
 
 ## 相关仓库
 

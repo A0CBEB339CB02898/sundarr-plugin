@@ -1,0 +1,133 @@
+# TMDb 目录插件
+
+本文档定义 `tmdb-catalog` 的平台映射、配置、分页和验收边界。插件类型为 `CATALOG_PROVIDER`，只提供媒体目录数据，不创建任务、不访问数据库，也不承担具体资源链接搜索。
+
+## 1. 配置
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `api_read_access_token` | password | 是 | 无 | TMDb API Read Access Token，使用 Bearer 认证 |
+| `language` | string | 否 | `zh-CN` | TMDb 返回内容语言 |
+| `include_adult` | boolean | 否 | `false` | 是否包含成人内容，默认关闭 |
+| `image_size` | select | 否 | `w500` | 海报和背景图尺寸 |
+
+Token 只能保存在 Sundarr `PluginConfig` 中，Manifest、fixture、日志和异常不得包含真实值。
+
+## 2. 官方接口映射
+
+| Sundarr 操作 | TMDb v3 接口 |
+|---|---|
+| 搜索全部 | `/search/multi`，过滤 person |
+| 搜索电影 | `/search/movie` |
+| 搜索剧集 | `/search/tv` |
+| 热门电影 | `/trending/movie/day` |
+| 热门剧集 | `/trending/tv/day` |
+| 分类电影 | `/discover/movie` |
+| 分类剧集 | `/discover/tv` |
+| 电影详情 | `/movie/{id}` |
+| 剧集详情 | `/tv/{id}` |
+| 电影题材 | `/genre/movie/list` |
+| 剧集题材 | `/genre/tv/list` |
+| 地区选项 | `/configuration/countries` |
+| 健康检查 | `/configuration` |
+
+认证使用 `Authorization: Bearer <token>`。图片 URL 按 TMDb 官方规则由 `https://image.tmdb.org/t/p/{size}{file_path}` 组成；MVP 不下载海报二进制文件。
+
+参考：
+
+- [TMDb 应用认证](https://developer.themoviedb.org/docs/authentication-application)
+- [TMDb 多类型搜索](https://developer.themoviedb.org/reference/search-multi)
+- [TMDb 电影发现](https://developer.themoviedb.org/reference/discover-movie)
+- [TMDb 剧集发现](https://developer.themoviedb.org/reference/discover-tv)
+- [TMDb 图片规则](https://developer.themoviedb.org/docs/image-basics)
+
+## 3. 身份和字段映射
+
+电影：
+
+```text
+external_id_provider = tmdb.movie
+external_ids = {"tmdb.movie": "<id>"}
+title = title
+original_title = original_title
+release_date = release_date
+```
+
+剧集：
+
+```text
+external_id_provider = tmdb.tv
+external_ids = {"tmdb.tv": "<id>"}
+title = name
+original_title = original_name
+release_date = first_air_date
+```
+
+TMDb 电影和剧集 ID 只在各自子域内解释，不得合并成笼统的 `tmdb` 命名空间。详情中的 `imdb_id` 可附加为 `imdb` 外部 ID；缺失时不生成空值。
+
+公共字段：
+
+- `year` 从有效发布日期提取；无有效日期时为 `None`。
+- `genres` 优先使用详情的题材名称；列表响应的 `genre_ids` 通过已加载题材表映射。
+- `regions` 使用 `origin_country`，电影详情缺失时使用 `production_countries[].iso_3166_1`。
+- `rating` 使用 `vote_average`，`vote_count` 原样映射为非负整数。
+- `poster_url`、`backdrop_url` 和 `image_urls` 只在路径有效时生成。
+
+## 4. 筛选与排序
+
+插件声明支持媒体类型、题材、地区和年份筛选，以及热度、评分和上映时间排序。
+
+`categories()` 通过 discover 接口映射：
+
+```text
+genres[0]   -> with_genres
+regions[0]  -> with_origin_country
+year_from   -> primary_release_date.gte / first_air_date.gte
+year_to     -> primary_release_date.lte / first_air_date.lte
+sort        -> popularity.desc / vote_average.desc / 日期.desc
+```
+
+`search()` 使用搜索接口，并对搜索响应执行明确的本地筛选。不能可靠判断某项筛选时，该候选不得通过筛选，不能静默忽略条件。
+
+## 5. 分页
+
+Core 只看到不透明 `continuation_token`。插件内部 Token 包含版本、操作、查询摘要、TMDb 页码和页内偏移：
+
+- Token 与当前查询不匹配时明确报错。
+- `limit < 20` 时可以从同一 TMDb 页继续。
+- `limit > 20` 时最多请求满足 limit 所需的连续页面。
+- 到达 `total_pages` 或没有剩余结果时返回 `None`。
+
+Token 不包含 API Token、完整请求 URL 或用户隐私数据。
+
+## 6. 错误边界
+
+- 401/403：认证失败，错误信息不得回显 Token。
+- 404：详情不存在，返回可诊断异常。
+- 429：限流，交给 Core 降级或重试策略，不在插件内部无限重试。
+- 响应不是对象、缺少分页结构或字段类型非法：返回明确平台响应错误。
+- 单条媒体字段异常应尽量隔离；无法形成 `CatalogItem` 的候选跳过并记录脱敏日志。
+
+## 7. 测试
+
+默认离线测试覆盖：
+
+- Manifest v2、配置 schema 和 Activation。
+- 电影/剧集搜索、热门、分类、详情映射。
+- `tmdb.movie` / `tmdb.tv` 身份隔离。
+- 题材、地区、年份和排序参数。
+- 多页、页内偏移、Token 查询绑定和末页。
+- 空结果、无图片、无日期、无评分和非法响应。
+- Token 不进入日志与错误。
+
+显式实时测试使用环境变量 `TMDB_API_READ_ACCESS_TOKEN`，覆盖搜索、热门、分类、详情和 Core conformance runner。没有 Token 时实时测试必须明确跳过，不能以 fixture 代替里程碑真实验收。
+
+## 8. 里程碑验收
+
+- `sundarr-plugin` 默认离线测试全绿。
+- 真实 TMDb conformance runner 全绿。
+- Core 从锁定 commit 激活 `tmdb-catalog`。
+- `/discover/providers`、搜索、热门、分类和详情 API 使用真实数据通过。
+- `/app/discover` 海报墙和详情页使用真实数据通过。
+- Core 全量 `pytest` 与前端生产构建通过。
+- 修正真实数据暴露的通用合同问题后，才能冻结 Plugin API v2。
