@@ -119,6 +119,18 @@ class TmdbCatalogProvider:
             media_types=frozenset(MediaType),
             filters=frozenset(CatalogFilter),
             sorts=frozenset(CatalogSort),
+            operation_filters={
+                CatalogOperation.SEARCH: frozenset(
+                    {CatalogFilter.MEDIA_TYPE, CatalogFilter.GENRE, CatalogFilter.YEAR}
+                ),
+                CatalogOperation.TRENDING: frozenset({CatalogFilter.MEDIA_TYPE}),
+                CatalogOperation.CATEGORIES: frozenset(CatalogFilter),
+            },
+            operation_sorts={
+                CatalogOperation.SEARCH: frozenset(),
+                CatalogOperation.TRENDING: frozenset(),
+                CatalogOperation.CATEGORIES: frozenset(CatalogSort),
+            },
             identity_namespaces=frozenset({"tmdb.movie", "tmdb.tv"}),
             filter_options={
                 CatalogFilter.GENRE: genre_options,
@@ -142,6 +154,7 @@ class TmdbCatalogProvider:
 
     async def search(self, query: CatalogQuery) -> CatalogPage:
         self._require_initialized()
+        self._validate_operation_query(CatalogOperation.SEARCH, query)
         keyword = (query.keyword or "").strip()
         if not keyword:
             raise ValueError("TMDb 搜索必须提供关键词")
@@ -165,6 +178,7 @@ class TmdbCatalogProvider:
 
     async def trending(self, query: CatalogQuery) -> CatalogPage:
         self._require_initialized()
+        self._validate_operation_query(CatalogOperation.TRENDING, query)
         if query.media_type is MediaType.MOVIE:
             endpoint, fixed_type = "/trending/movie/day", MediaType.MOVIE
         elif query.media_type is MediaType.SERIES:
@@ -181,6 +195,7 @@ class TmdbCatalogProvider:
 
     async def categories(self, query: CatalogQuery) -> CatalogPage:
         self._require_initialized()
+        self._validate_operation_query(CatalogOperation.CATEGORIES, query)
         if query.media_type is None:
             return await self._mixed_categories(query)
         return await self._categories_for_type(query)
@@ -362,11 +377,6 @@ class TmdbCatalogProvider:
             raw_results = _require_sequence(payload.get("results"), f"{operation}.results")
             total_pages = _positive_int(payload.get("total_pages"), default=page_number)
             ordered_results = list(raw_results)
-            if query.sort is not None and not operation.startswith("categories"):
-                ordered_results.sort(
-                    key=lambda item: _raw_sort_key(item, query.sort, fixed_media_type),
-                    reverse=True,
-                )
 
             consumed_index = len(raw_results)
             for position, raw in enumerate(ordered_results):
@@ -518,6 +528,38 @@ class TmdbCatalogProvider:
         if not self._initialized:
             raise TmdbProviderError("TMDb Provider 尚未初始化")
 
+    def _validate_operation_query(
+        self,
+        operation: CatalogOperation,
+        query: CatalogQuery,
+    ) -> None:
+        capabilities = self.describe_capabilities()
+        requested_filters: list[CatalogFilter] = []
+        if query.media_type is not None:
+            requested_filters.append(CatalogFilter.MEDIA_TYPE)
+        if query.genres:
+            requested_filters.append(CatalogFilter.GENRE)
+        if query.regions:
+            requested_filters.append(CatalogFilter.REGION)
+        if query.year_from is not None or query.year_to is not None:
+            requested_filters.append(CatalogFilter.YEAR)
+        unsupported = [
+            item.value
+            for item in requested_filters
+            if item not in capabilities.filters_for(operation)
+        ]
+        if unsupported:
+            raise ValueError(
+                f"TMDb {operation.value} 不支持筛选：{'、'.join(unsupported)}"
+            )
+        if (
+            query.sort is not None
+            and query.sort not in capabilities.sorts_for(operation)
+        ):
+            raise ValueError(
+                f"TMDb {operation.value} 不支持排序：{query.sort.value}"
+            )
+
 
 async def activate(context: Any) -> TmdbCatalogProvider:
     """Manifest v2 入口。"""
@@ -597,24 +639,6 @@ def _matches_query(raw: Mapping[str, Any], media_type: MediaType, query: Catalog
     if query.year_to is not None and (release_date is None or release_date.year > query.year_to):
         return False
     return True
-
-
-def _raw_sort_key(
-    raw: object,
-    sort: CatalogSort,
-    fixed_media_type: MediaType | None,
-) -> tuple[object, ...]:
-    if not isinstance(raw, Mapping):
-        return (0,)
-    if sort is CatalogSort.RATING:
-        return (_rating(raw.get("vote_average")) or 0.0, _non_negative_int(raw.get("vote_count")) or 0)
-    if sort is CatalogSort.RELEASE_DATE:
-        media_type = _resolve_media_type(raw, fixed_media_type)
-        key = "release_date" if media_type is MediaType.MOVIE else "first_air_date"
-        parsed = _parse_date(raw.get(key))
-        return (parsed.toordinal() if parsed else 0,)
-    value = raw.get("popularity")
-    return (float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0,)
 
 
 def _resolve_media_type(

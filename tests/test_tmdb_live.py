@@ -128,6 +128,12 @@ def test_tmdb_real_data_conformance_and_core_api(monkeypatch: pytest.MonkeyPatch
         assert {"tmdb.movie", "tmdb.tv"}.issubset(
             providers.json()[0]["identity_namespaces"]
         )
+        assert providers.json()[0]["operation_filters"]["search"] == [
+            "genre",
+            "media_type",
+            "year",
+        ]
+        assert providers.json()[0]["operation_sorts"]["search"] == []
 
         search = api.get(
             "/discover/search",

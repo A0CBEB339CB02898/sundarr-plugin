@@ -24,6 +24,7 @@ from sundarr.app.plugins.conformance import (
 )
 from sundarr.app.plugins.contracts import (
     CatalogFilter,
+    CatalogOperation,
     CatalogQuery,
     CatalogSort,
     MediaType,
@@ -186,6 +187,12 @@ def test_activated_tmdb_runs_through_core_discover_api(monkeypatch: pytest.Monke
         providers = api.get("/discover/providers")
         assert providers.status_code == 200
         assert providers.json()[0]["id"] == "tmdb-catalog"
+        assert providers.json()[0]["operation_filters"]["search"] == [
+            "genre",
+            "media_type",
+            "year",
+        ]
+        assert providers.json()[0]["operation_sorts"]["search"] == []
 
         search = api.get(
             "/discover/search",
@@ -224,6 +231,14 @@ def test_capabilities_are_built_from_runtime_genres_and_countries() -> None:
     assert capabilities.identity_namespaces == frozenset({"tmdb.movie", "tmdb.tv"})
     assert capabilities.media_types == frozenset(MediaType)
     assert capabilities.sorts == frozenset(CatalogSort)
+    assert capabilities.filters_for(CatalogOperation.SEARCH) == frozenset(
+        {CatalogFilter.MEDIA_TYPE, CatalogFilter.GENRE, CatalogFilter.YEAR}
+    )
+    assert capabilities.filters_for(CatalogOperation.TRENDING) == frozenset(
+        {CatalogFilter.MEDIA_TYPE}
+    )
+    assert capabilities.sorts_for(CatalogOperation.SEARCH) == frozenset()
+    assert capabilities.sorts_for(CatalogOperation.CATEGORIES) == frozenset(CatalogSort)
     genre_values = {item.value for item in capabilities.filter_options[CatalogFilter.GENRE]}
     region_values = {item.value for item in capabilities.filter_options[CatalogFilter.REGION]}
     assert {"18", "28", "10765"}.issubset(genre_values)
@@ -248,7 +263,7 @@ def test_search_maps_movie_and_tv_and_skips_people() -> None:
     asyncio.run(run())
 
 
-def test_search_applies_genre_region_and_year_without_silent_ignore() -> None:
+def test_search_applies_genre_and_year_without_silent_ignore() -> None:
     async def run() -> None:
         provider = await _provider()
         page = await provider.search(
@@ -256,13 +271,27 @@ def test_search_applies_genre_region_and_year_without_silent_ignore() -> None:
                 keyword="matrix",
                 media_type=MediaType.MOVIE,
                 genres=("28",),
-                regions=("US",),
                 year_from=1999,
                 year_to=1999,
                 limit=10,
             )
         )
         assert [item.external_id for item in page.items] == ["603"]
+
+    asyncio.run(run())
+
+
+def test_search_and_trending_reject_capabilities_only_available_to_categories() -> None:
+    async def run() -> None:
+        provider = await _provider()
+        with pytest.raises(ValueError, match="search 不支持筛选：region"):
+            await provider.search(CatalogQuery(keyword="matrix", regions=("US",)))
+        with pytest.raises(ValueError, match="search 不支持排序：rating"):
+            await provider.search(
+                CatalogQuery(keyword="matrix", sort=CatalogSort.RATING)
+            )
+        with pytest.raises(ValueError, match="trending 不支持筛选：genre"):
+            await provider.trending(CatalogQuery(genres=("28",)))
 
     asyncio.run(run())
 
