@@ -100,6 +100,14 @@ class FixtureHttpFactory:
         return self.client
 
 
+class AdultFixtureHttpClient(FixtureHttpClient):
+    async def get_json(self, url: str, *, headers: dict[str, str] | None = None):
+        payload = await super().get_json(url, headers=headers)
+        if urlparse(url).path.endswith("/trending/all/day"):
+            payload["results"][0]["adult"] = True
+        return payload
+
+
 async def _provider(client: FixtureHttpClient | None = None) -> TmdbCatalogProvider:
     provider = TmdbCatalogProvider(
         client or FixtureHttpClient(),
@@ -340,6 +348,30 @@ def test_trending_continuation_stays_inside_single_remote_response() -> None:
         ]
         assert trending_calls
         assert all("page" not in query for query in trending_calls)
+
+    asyncio.run(run())
+
+
+def test_trending_respects_include_adult_without_remote_query_parameter() -> None:
+    async def run() -> None:
+        hidden = TmdbCatalogProvider(
+            AdultFixtureHttpClient(),
+            api_read_access_token="offline-token",
+            include_adult=False,
+        )
+        visible = TmdbCatalogProvider(
+            AdultFixtureHttpClient(),
+            api_read_access_token="offline-token",
+            include_adult=True,
+        )
+        await hidden.initialize()
+        await visible.initialize()
+
+        hidden_page = await hidden.trending(CatalogQuery(limit=10))
+        visible_page = await visible.trending(CatalogQuery(limit=10))
+
+        assert "603" not in {item.external_id for item in hidden_page.items}
+        assert "603" in {item.external_id for item in visible_page.items}
 
     asyncio.run(run())
 

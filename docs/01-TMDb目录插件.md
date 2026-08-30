@@ -87,6 +87,8 @@ TMDb 电影和剧集 ID 只在各自子域内解释，不得合并成笼统的 `
 
 TMDb 电影文本搜索的 `region` 参数控制地区发行日期展示，不等于 Sundarr `region` 的影片来源地区；剧集文本搜索也没有等价来源地区参数。因此插件不能把分类接口的地区筛选声明给 `search`，也不能用当前页本地排序冒充平台级搜索排序。
 
+`include_adult=false` 必须同时作为本地结果保护应用于所有列表操作。search / discover 可以继续传递 TMDb 对应参数；trending 没有该查询参数，插件必须过滤响应中 `adult=true` 的候选，不能让首页热门区绕过配置。
+
 `categories()` 通过 discover 接口映射：
 
 ```text

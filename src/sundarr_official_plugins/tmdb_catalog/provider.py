@@ -405,6 +405,8 @@ class TmdbCatalogProvider:
                 if not isinstance(raw, Mapping):
                     self._logger.warning("TMDb %s 跳过非对象目录项", operation)
                     continue
+                if not self._include_adult and raw.get("adult") is True:
+                    continue
                 media_type = _resolve_media_type(raw, fixed_media_type)
                 if media_type is None:
                     continue
