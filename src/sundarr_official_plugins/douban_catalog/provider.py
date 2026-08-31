@@ -13,7 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import date
 from typing import Any, Protocol
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from sundarr.app.plugins.contracts import (
     CatalogAttribution,
@@ -676,7 +676,13 @@ def _optional_text(value: object) -> str | None:
 
 def _https_url(value: object) -> str | None:
     text = _optional_text(value)
-    return text if text and text.startswith("https://") else None
+    if not text or not text.startswith("https://"):
+        return None
+    parsed = urlsplit(text)
+    hostname = (parsed.hostname or "").lower()
+    if re.fullmatch(r"img\d+\.doubanio\.com", hostname):
+        return urlunsplit(parsed._replace(netloc="img1.doubanio.com"))
+    return text
 
 
 def _text_tuple(value: object) -> tuple[str, ...]:

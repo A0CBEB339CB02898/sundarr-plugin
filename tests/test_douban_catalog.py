@@ -36,6 +36,7 @@ from sundarr_official_plugins.douban_catalog import (
     DoubanCatalogProvider,
     DoubanProviderError,
 )
+from sundarr_official_plugins.douban_catalog.provider import _https_url
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -150,6 +151,16 @@ def test_capabilities_are_operation_specific_and_attributed() -> None:
     assert capabilities.attribution.image_referer_url == "https://movie.douban.com/"
     genres = {item.value for item in capabilities.filter_options[CatalogFilter.GENRE]}
     assert {"剧情", "科幻", "犯罪"}.issubset(genres)
+
+
+def test_douban_image_cdn_host_is_normalized_for_relay() -> None:
+    source = "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p123.jpg"
+    assert _https_url(source) == (
+        "https://img1.doubanio.com/view/photo/m_ratio_poster/public/p123.jpg"
+    )
+    assert _https_url("https://images.example.test/poster.jpg") == (
+        "https://images.example.test/poster.jpg"
+    )
 
 
 def test_search_maps_types_filters_year_and_resumes() -> None:
