@@ -147,6 +147,7 @@ def test_capabilities_are_operation_specific_and_attributed() -> None:
     assert capabilities.attribution is not None
     assert capabilities.attribution.provider_name == "豆瓣"
     assert capabilities.attribution.logo_url is None
+    assert capabilities.attribution.image_referer_url == "https://movie.douban.com/"
     genres = {item.value for item in capabilities.filter_options[CatalogFilter.GENRE]}
     assert {"剧情", "科幻", "犯罪"}.issubset(genres)
 

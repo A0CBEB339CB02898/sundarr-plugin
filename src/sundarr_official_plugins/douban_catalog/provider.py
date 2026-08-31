@@ -139,6 +139,7 @@ class DoubanCatalogProvider:
                 provider_name="豆瓣",
                 homepage_url="https://movie.douban.com",
                 notice="数据来源于豆瓣公开页面；豆瓣与本项目无隶属、合作或背书关系。",
+                image_referer_url="https://movie.douban.com/",
             ),
             identity_namespaces=frozenset({"douban.subject"}),
             filter_options={CatalogFilter.GENRE: genre_options},
