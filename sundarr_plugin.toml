@@ -46,3 +46,23 @@ label = "图片尺寸"
 required = false
 default = "w500"
 options = ["w342", "w500", "w780", "original"]
+
+[[plugins]]
+id = "douban-catalog"
+name = "豆瓣目录"
+version = "0.1.0"
+plugin_type = "catalog_provider"
+description = "提供豆瓣电影与剧集搜索、热门、分类和详情补充数据。"
+author = "Sundarr Team"
+homepage_url = "https://github.com/A0CBEB339CB02898/sundarr-plugin"
+plugin_api_version = "1.0"
+entry = "plugin_entry:activate_douban_catalog"
+
+[plugins.runtime]
+requires = ["core.http.v1", "core.catalog_registry.v1"]
+provides = [
+  "catalog.search.v1",
+  "catalog.trending.v1",
+  "catalog.categories.v1",
+  "catalog.detail.v1",
+]

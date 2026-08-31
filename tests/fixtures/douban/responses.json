@@ -1,0 +1,102 @@
+{
+  "suggestions": [
+    {
+      "id": "1889243",
+      "title": "星际穿越",
+      "sub_title": "Interstellar",
+      "type": "movie",
+      "year": "2014",
+      "img": "https://img.example.test/interstellar.jpg"
+    },
+    {
+      "id": "35588177",
+      "title": "漫长的季节",
+      "sub_title": "The Long Season",
+      "type": "tv",
+      "year": "2023",
+      "img": "https://img.example.test/long-season.jpg"
+    },
+    {
+      "id": "person-1",
+      "title": "同名人物",
+      "type": "celebrity",
+      "year": "1980"
+    }
+  ],
+  "movie_subjects": [
+    {
+      "id": "1889243",
+      "title": "星际穿越",
+      "rate": "9.4",
+      "cover": "https://img.example.test/interstellar.jpg"
+    },
+    {
+      "id": "1295644",
+      "title": "这个杀手不太冷",
+      "rate": "9.4",
+      "cover": "https://img.example.test/leon.jpg"
+    },
+    {
+      "id": "1292720",
+      "title": "阿甘正传",
+      "rate": "9.5",
+      "cover": "https://img.example.test/gump.jpg"
+    }
+  ],
+  "series_subjects": [
+    {
+      "id": "35588177",
+      "title": "漫长的季节",
+      "rate": "9.4",
+      "cover": "https://img.example.test/long-season.jpg"
+    },
+    {
+      "id": "30166972",
+      "title": "隐秘的角落",
+      "rate": "8.8",
+      "cover": "https://img.example.test/bad-kids.jpg"
+    },
+    {
+      "id": "26683290",
+      "title": "人民的名义",
+      "rate": "8.3",
+      "cover": "https://img.example.test/people.jpg"
+    }
+  ],
+  "movie_detail": {
+    "id": "1889243",
+    "title": "星际穿越",
+    "original_title": "Interstellar",
+    "type": "movie",
+    "year": "2014",
+    "intro": "一组宇航员穿越虫洞寻找人类新家园。",
+    "genres": ["剧情", "科幻", "冒险"],
+    "countries": ["美国", "英国"],
+    "pubdate": ["2014-11-12(中国大陆)"],
+    "rating": {"value": 9.4, "count": 2200000},
+    "pic": {
+      "large": "https://img.example.test/interstellar-large.jpg",
+      "normal": "https://img.example.test/interstellar.jpg"
+    },
+    "cover": {
+      "image": {
+        "large": {"url": "https://img.example.test/interstellar-backdrop.jpg"}
+      }
+    }
+  },
+  "series_detail": {
+    "id": "35588177",
+    "title": "漫长的季节",
+    "original_title": "The Long Season",
+    "type": "tv",
+    "year": "2023",
+    "intro": "一座小城里跨越多年的往事。",
+    "genres": ["剧情", "家庭", "犯罪"],
+    "countries": ["中国大陆"],
+    "pubdate": ["2023-04-22(中国大陆)"],
+    "rating": {"value": 9.4, "count": 1000000},
+    "pic": {
+      "large": "https://img.example.test/long-season-large.jpg"
+    }
+  }
+}
