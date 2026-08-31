@@ -16,7 +16,7 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库基线、TMDb `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31 已使用有效凭据通过实时测试、Core `/discover`、Web Console 海报墙/详情、分页和降级验收；Plugin API v2 已据此冻结。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。当前交付是豆瓣可选目录插件，边界见 [`docs/02-豆瓣目录插件.md`](docs/02-豆瓣目录插件.md)。
+仓库基线、TMDb 与豆瓣 `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31，TMDb 已通过有效凭据的实时测试，豆瓣目录已通过公开真实数据测试；Core `/discover`、Web Console 数据来源切换、海报墙、详情、分页、失败隔离和启动恢复均通过。Plugin API v2 保持冻结，豆瓣功能基线为 `6c935b6`，正式发布锁定以 Sundarr Core 路线图记录为准。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。下一项交付是独立豆瓣想看插件。
 
 ## 目标结构
 
