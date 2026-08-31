@@ -16,7 +16,7 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库基线、TMDb `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31 已使用有效凭据通过实时测试、Core `/discover`、Web Console 海报墙/详情、分页和降级验收；Plugin API v2 已据此冻结。当前仓库的下一项交付是豆瓣可选目录插件，但总体 Phase 10.3 会先在独立 `sundarr-sources` 仓库完成 SeedHub SOURCE v2。实现与验收边界见 [`docs/01-TMDb目录插件.md`](docs/01-TMDb目录插件.md)。
+仓库基线、TMDb `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31 已使用有效凭据通过实时测试、Core `/discover`、Web Console 海报墙/详情、分页和降级验收；Plugin API v2 已据此冻结。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。当前交付是豆瓣可选目录插件，边界见 [`docs/02-豆瓣目录插件.md`](docs/02-豆瓣目录插件.md)。
 
 ## 目标结构
 
@@ -26,7 +26,8 @@ sundarr-plugin/
 ├── plugin_entry.py              # 仓库根加载入口
 ├── src/
 │   └── sundarr_official_plugins/
-│       └── tmdb_catalog/
+│       ├── tmdb_catalog/
+│       └── douban_catalog/
 ├── tests/                       # 离线测试与显式实时测试
 └── docs/                        # 插件规格和验收边界
 ```
@@ -40,6 +41,8 @@ sundarr-plugin/
 - 仓库级实时测试通过显式命令运行，凭据只从当前测试进程环境变量读取；这不是 Sundarr 正式运行时的配置方式。
 - 插件开发必须使用真实数据持续回归 Core，但实时外部服务不能成为默认自动化测试依赖。
 - TMDb 电影与剧集使用精确身份命名空间，例如 `tmdb.movie` 和 `tmdb.tv`，避免同号 ID 错误合并。
+- 豆瓣目录使用 `douban.subject` 身份命名空间；缺少共同稳定外部 ID 时不按标题和年份静默合并到 TMDb。
+- 豆瓣实现参考 MIT 许可的 [`Marvae/douban-cli`](https://github.com/Marvae/douban-cli) 接口覆盖，但使用 Python 独立实现，不引入 Node.js 运行时或运行时仓库依赖。
 
 ## 本地开发
 
@@ -74,6 +77,14 @@ python -m pytest -o addopts= -m live
 不要把 Token 写入 `.env`、测试参数、命令历史示例或提交文件。
 
 上述环境变量只服务于不修改用户数据库的独立测试。正式运行时应在 Sundarr `/app/plugins` 中配置 `tmdb-catalog`，由 Core 配置 API 持久化到 `PluginConfig`；插件仓库本身不读取宿主 API / Worker 环境变量作为运行配置。
+
+豆瓣目录实时测试访问无需账号的公开目录数据，不需要 Cookie 或 Token：
+
+```powershell
+python -m pytest -o addopts= -m live tests/test_douban_live.py
+```
+
+实时响应不得未经审查直接保存为 fixture。默认测试使用经过裁剪的离线样本，避免把外部服务可用性变成普通回归测试前提。
 
 ## 相关仓库
 
