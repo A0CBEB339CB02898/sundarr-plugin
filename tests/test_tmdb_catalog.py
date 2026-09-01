@@ -286,7 +286,7 @@ def test_search_applies_genre_and_year_without_silent_ignore() -> None:
             CatalogQuery(
                 keyword="matrix",
                 media_type=MediaType.MOVIE,
-                genres=("28",),
+                genres=("28", "878"),
                 year_from=1999,
                 year_to=1999,
                 limit=10,
@@ -383,7 +383,7 @@ def test_categories_maps_filters_sort_and_mixes_movie_with_series() -> None:
         movie_page = await provider.categories(
             CatalogQuery(
                 media_type=MediaType.MOVIE,
-                genres=("28",),
+                genres=("28", "878"),
                 regions=("US",),
                 year_from=1999,
                 year_to=2020,
@@ -394,7 +394,7 @@ def test_categories_maps_filters_sort_and_mixes_movie_with_series() -> None:
         assert movie_page.items
         path, query, _ = next(call for call in client.calls if call[0].endswith("/discover/movie"))
         assert path.endswith("/discover/movie")
-        assert query["with_genres"] == ["28"]
+        assert query["with_genres"] == ["28,878"]
         assert query["with_origin_country"] == ["US"]
         assert query["primary_release_date.gte"] == ["1999-01-01"]
         assert query["primary_release_date.lte"] == ["2020-12-31"]

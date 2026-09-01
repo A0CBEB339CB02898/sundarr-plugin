@@ -92,7 +92,7 @@ TMDb 电影文本搜索的 `region` 参数控制地区发行日期展示，不�
 `categories()` 通过 discover 接口映射：
 
 ```text
-genres[0]   -> with_genres
+genres      -> with_genres（逗号连接，AND 语义）
 regions[0]  -> with_origin_country
 year_from   -> primary_release_date.gte / first_air_date.gte
 year_to     -> primary_release_date.lte / first_air_date.lte
@@ -100,6 +100,8 @@ sort        -> popularity.desc / vote_average.desc / 日期.desc
 ```
 
 `search()` 使用搜索接口，并对搜索响应执行明确的本地筛选。不能可靠判断某项筛选时，该候选不得通过筛选，不能静默忽略条件。
+
+`CatalogQuery.genres` 可以包含多个题材。分类接口必须把全部值传给 TMDb；文本搜索的本地过滤也必须要求候选包含全部题材，不能只读取第一个值。地区仍只接受一个值。
 
 ## 5. 分页
 

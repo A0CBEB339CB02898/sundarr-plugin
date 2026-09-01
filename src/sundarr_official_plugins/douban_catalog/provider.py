@@ -194,8 +194,11 @@ class DoubanCatalogProvider:
     async def categories(self, query: CatalogQuery) -> CatalogPage:
         self._require_initialized()
         self._validate_operation_query(CatalogOperation.CATEGORIES, query)
-        if query.genres and query.genres[0] not in _GENRES:
-            raise ValueError(f"豆瓣 categories 不支持题材：{query.genres[0]}")
+        unsupported_genres = [genre for genre in query.genres if genre not in _GENRES]
+        if unsupported_genres:
+            raise ValueError(
+                f"豆瓣 categories 不支持题材：{'、'.join(unsupported_genres)}"
+            )
         if query.media_type is None:
             return await self._mixed_page("categories", query)
         return await self._categories_for_type(query)
@@ -276,7 +279,7 @@ class DoubanCatalogProvider:
             raise ValueError("分类查询缺少媒体类型")
         tags = ["电影" if query.media_type is MediaType.MOVIE else "电视剧"]
         if query.genres:
-            tags.append(query.genres[0])
+            tags.extend(query.genres)
         payload = _require_mapping(
             await self._request_movie(
                 "/j/new_search_subjects",

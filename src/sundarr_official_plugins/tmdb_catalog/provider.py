@@ -252,7 +252,7 @@ class TmdbCatalogProvider:
             "sort_by": _tmdb_sort(query.sort, query.media_type),
         }
         if query.genres:
-            params["with_genres"] = query.genres[0]
+            params["with_genres"] = ",".join(query.genres)
         if query.regions:
             params["with_origin_country"] = query.regions[0]
         if query.year_from is not None:
@@ -650,7 +650,8 @@ def _matches_query(raw: Mapping[str, Any], media_type: MediaType, query: Catalog
         genre_ids = raw.get("genre_ids")
         if not isinstance(genre_ids, Sequence) or isinstance(genre_ids, (str, bytes)):
             return False
-        if query.genres[0] not in {str(item) for item in genre_ids}:
+        available_genres = {str(item) for item in genre_ids}
+        if not set(query.genres).issubset(available_genres):
             return False
     if query.regions:
         if query.regions[0] not in set(_regions(raw)):

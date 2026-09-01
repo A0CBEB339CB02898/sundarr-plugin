@@ -233,14 +233,14 @@ def test_trending_and_categories_map_pagination_tags_and_sort() -> None:
         categories = await provider.categories(
             CatalogQuery(
                 media_type=MediaType.SERIES,
-                genres=("犯罪",),
+                genres=("犯罪", "剧情"),
                 sort=CatalogSort.RATING,
                 limit=2,
             )
         )
         assert categories.items[0].media_type is MediaType.SERIES
         category_call = next(call for call in client.calls if call[0] == "/j/new_search_subjects")
-        assert category_call[1]["tags"] == ["电视剧,犯罪"]
+        assert category_call[1]["tags"] == ["电视剧,犯罪,剧情"]
         assert category_call[1]["sort"] == ["R"]
 
     asyncio.run(run())
