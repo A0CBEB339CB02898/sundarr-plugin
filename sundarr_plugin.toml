@@ -66,3 +66,24 @@ provides = [
   "catalog.categories.v1",
   "catalog.detail.v1",
 ]
+
+[[plugins]]
+id = "douban-watchlist"
+name = "豆瓣想看"
+version = "0.1.0"
+plugin_type = "watchlist_provider"
+description = "同步公开豆瓣想看列表。"
+author = "Sundarr Team"
+homepage_url = "https://github.com/A0CBEB339CB02898/sundarr-plugin"
+plugin_api_version = "1.0"
+entry = "plugin_entry:activate_douban_watchlist"
+
+[plugins.runtime]
+requires = ["core.http.v1", "core.watchlist_registry.v1"]
+provides = ["watchlist.pull.v1"]
+
+[plugins.config_schema.user_id]
+type = "string"
+label = "豆瓣用户 ID"
+required = true
+placeholder = "例如 164867789"
