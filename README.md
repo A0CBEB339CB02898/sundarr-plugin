@@ -16,7 +16,7 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库基线、TMDb 与豆瓣 `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31，TMDb 已通过有效凭据的实时测试，豆瓣目录已通过公开真实数据测试；Core `/discover`、Web Console 数据来源切换、海报墙、详情、分页、失败隔离和启动恢复均通过。Plugin API v2 保持冻结，豆瓣功能基线为 `6c935b6`，正式发布锁定以 Sundarr Core 路线图记录为准。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。下一项交付是独立豆瓣想看插件。
+仓库基线、TMDb 与豆瓣 `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31，TMDb 已通过有效凭据的实时测试，豆瓣目录已通过公开真实数据测试；Core `/discover`、Web Console 数据来源切换、海报墙、详情、分页、失败隔离和启动恢复均通过。Plugin API v2 保持冻结，豆瓣功能基线为 `6c935b6`，正式发布锁定以 Sundarr Core 路线图记录为准。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。豆瓣想看公开列表模式和分页结构已完成真实验证，当前实现独立 `douban-watchlist`。
 
 ## 目标结构
 
@@ -27,7 +27,8 @@ sundarr-plugin/
 ├── src/
 │   └── sundarr_official_plugins/
 │       ├── tmdb_catalog/
-│       └── douban_catalog/
+│       ├── douban_catalog/
+│       └── douban_watchlist/
 ├── tests/                       # 离线测试与显式实时测试
 └── docs/                        # 插件规格和验收边界
 ```
@@ -82,6 +83,13 @@ python -m pytest -o addopts= -m live
 
 ```powershell
 python -m pytest -o addopts= -m live tests/test_douban_live.py
+```
+
+豆瓣想看实时测试只读取显式传入的公开数字用户 ID，不使用 Cookie：
+
+```powershell
+$env:DOUBAN_WATCHLIST_USER_ID = "<公开豆瓣用户 ID>"
+python -m pytest -o addopts= -m live tests/test_douban_watchlist_live.py
 ```
 
 实时响应不得未经审查直接保存为 fixture。默认测试使用经过裁剪的离线样本，避免把外部服务可用性变成普通回归测试前提。
