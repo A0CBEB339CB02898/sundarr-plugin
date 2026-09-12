@@ -18,6 +18,21 @@ from sundarr_official_plugins.douban_catalog import DoubanCatalogProvider
 pytestmark = pytest.mark.live
 
 
+def test_douban_real_search_returns_love_letter() -> None:
+    async def run() -> None:
+        provider = DoubanCatalogProvider(PluginHttpClient(plugin_id="douban-catalog-live-search"))
+        await provider.initialize()
+        search = await provider.search(
+            CatalogQuery(keyword="情书", media_type=MediaType.MOVIE, limit=10)
+        )
+        target = next(item for item in search.items if item.external_id == "1292220")
+        assert target.title == "情书"
+        assert target.year == 1995
+        assert target.poster_url and target.poster_url.startswith("https://")
+
+    asyncio.run(run())
+
+
 def test_douban_real_search_trending_categories_and_details() -> None:
     async def run() -> None:
         client = PluginHttpClient(plugin_id="douban-catalog-live")

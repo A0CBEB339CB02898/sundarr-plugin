@@ -16,7 +16,7 @@ WATCHLIST_PROVIDER：外部想看列表同步
 
 ## 当前状态
 
-仓库基线、TMDb 与豆瓣 `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-08-31，TMDb 已通过有效凭据的实时测试，豆瓣目录已通过公开真实数据测试；Core `/discover`、Web Console 数据来源切换、海报墙、详情、分页、失败隔离和启动恢复均通过。Plugin API v2 保持冻结，豆瓣功能基线为 `6c935b6`，正式发布锁定以 Sundarr Core 路线图记录为准。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。豆瓣想看公开列表模式和分页结构已完成真实验证，当前实现独立 `douban-watchlist`。
+仓库基线、TMDb 与豆瓣 `CATALOG_PROVIDER`、Manifest v2、离线合同测试和真实数据端到端验收均已完成。2026-09-13 的发布前回归确认豆瓣旧搜索建议端点会以 HTTP 200 返回空数组，`douban-catalog` 搜索已切换到仍能返回真实影视候选的移动端 `rexxar/api/v2/search`，并继续在插件内排除图书、人物等非影视类型。Core `/discover`、Web Console 数据来源切换、海报墙、详情、分页、失败隔离和启动恢复均须随正式锁定提交回归。Plugin API v2 保持冻结，正式发布锁定以 Sundarr Core 路线图记录为准。独立 `sundarr-sources` 仓库中的 SeedHub SOURCE v2 也已完成官方发布和 Core 锁定验收。豆瓣想看公开列表模式和分页结构已完成真实验证，当前实现独立 `douban-watchlist`。
 
 ## 目标结构
 

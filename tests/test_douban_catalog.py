@@ -59,8 +59,13 @@ class FixtureHttpClient:
         assert request_headers["User-Agent"].startswith("Mozilla/5.0")
         assert request_headers["Referer"].startswith("https://")
         payload = _fixture()
-        if parsed.path == "/j/subject_suggest":
-            return deepcopy(payload["suggestions"])
+        if parsed.path == "/rexxar/api/v2/search":
+            items = []
+            for suggestion in deepcopy(payload["suggestions"]):
+                target_type = suggestion.pop("type")
+                suggestion["cover_url"] = suggestion.pop("img", None)
+                items.append({"target_type": target_type, "target": suggestion})
+            return {"subjects": {"items": items}}
         if parsed.path == "/j/search_subjects":
             rows = payload[
                 "movie_subjects" if query.get("type") == ["movie"] else "series_subjects"
@@ -165,7 +170,8 @@ def test_douban_image_cdn_host_is_normalized_for_relay() -> None:
 
 def test_search_maps_types_filters_year_and_resumes() -> None:
     async def run() -> None:
-        provider = await _provider()
+        client = FixtureHttpClient()
+        provider = await _provider(client)
         first = await provider.search(CatalogQuery(keyword="季节", limit=1))
         assert first.items[0].external_ids == {"douban.subject": "1889243"}
         assert first.items[0].original_title == "Interstellar"
@@ -195,6 +201,8 @@ def test_search_maps_types_filters_year_and_resumes() -> None:
                     continuation_token=first.continuation_token,
                 )
             )
+        search_call = next(call for call in client.calls if call[0] == "/rexxar/api/v2/search")
+        assert search_call[1] == {"q": ["季节"], "start": ["0"], "count": ["50"]}
 
     asyncio.run(run())
 

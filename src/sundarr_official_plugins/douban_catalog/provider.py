@@ -37,6 +37,10 @@ _USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0 Safari/537.36"
 )
+_MOBILE_USER_AGENT = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) "
+    "AppleWebKit/605.1.15 Mobile/15E148"
+)
 _GENRES = (
     "剧情",
     "喜剧",
@@ -162,15 +166,23 @@ class DoubanCatalogProvider:
             raise ValueError("豆瓣搜索必须提供关键词")
         signature = _query_signature("search", query)
         offset = _decode_offset_token(query.continuation_token, signature, "search")
-        payload = _require_sequence(
-            await self._request_movie("/j/subject_suggest", {"q": keyword}),
+        payload = _require_mapping(
+            await self._request_mobile(
+                "/rexxar/api/v2/search",
+                {"q": keyword, "start": 0, "count": 50},
+            ),
             "search",
         )
+        subjects = _require_mapping(payload.get("subjects"), "search.subjects")
+        rows = _require_sequence(subjects.get("items"), "search.subjects.items")
         items: list[CatalogItem] = []
-        for raw in payload:
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            raw = row.get("target")
             if not isinstance(raw, Mapping):
                 continue
-            media_type = _media_type(raw.get("type"))
+            media_type = _media_type(row.get("target_type"))
             if media_type is None or not _matches_search(raw, media_type, query):
                 continue
             try:
@@ -404,8 +416,12 @@ class DoubanCatalogProvider:
             raise DoubanProviderError("豆瓣目录项缺少标题")
         year = _parse_year(raw.get("year")) if suggestion else None
         poster_url = _https_url(raw.get("img" if suggestion else "cover"))
+        if suggestion and poster_url is None:
+            poster_url = _https_url(raw.get("cover_url"))
         original_title = _optional_text(raw.get("sub_title")) if suggestion else None
-        rating = _rating(raw.get("rate"))
+        rating_payload = raw.get("rating")
+        rating_map = rating_payload if isinstance(rating_payload, Mapping) else {}
+        rating = _rating(raw.get("rate")) or _rating(rating_map.get("value"))
         return CatalogItem(
             external_id=external_id,
             external_id_provider="douban.subject",
@@ -473,8 +489,12 @@ class DoubanCatalogProvider:
     ) -> Any:
         return await self._request(MOVIE_BASE_URL, path, params)
 
-    async def _request_mobile(self, path: str) -> Any:
-        return await self._request(MOBILE_BASE_URL, path, None)
+    async def _request_mobile(
+        self,
+        path: str,
+        params: Mapping[str, object] | None = None,
+    ) -> Any:
+        return await self._request(MOBILE_BASE_URL, path, params)
 
     async def _request(
         self,
@@ -486,14 +506,16 @@ class DoubanCatalogProvider:
             [(key, str(value)) for key, value in (params or {}).items() if value is not None]
         )
         url = f"{base_url}{path}{'?' + query if query else ''}"
-        referer = "https://m.douban.com/" if base_url == MOBILE_BASE_URL else "https://movie.douban.com/"
+        is_mobile = base_url == MOBILE_BASE_URL
+        referer = "https://m.douban.com/search/" if is_mobile else "https://movie.douban.com/"
+        user_agent = _MOBILE_USER_AGENT if is_mobile else _USER_AGENT
         try:
             return await self._http.get_json(
                 url,
                 headers={
                     "Accept": "application/json, text/plain, */*",
                     "Referer": referer,
-                    "User-Agent": _USER_AGENT,
+                    "User-Agent": user_agent,
                 },
             )
         except Exception as exc:
