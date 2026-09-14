@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from copy import deepcopy
 import json
+from copy import deepcopy
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
 from sundarr.app import models  # noqa: F401
 from sundarr.app.core.database import Base, get_db
 from sundarr.app.main import create_app
@@ -32,12 +31,12 @@ from sundarr.app.plugins.contracts import (
 from sundarr.app.plugins.loader import PluginLoader
 from sundarr.app.plugins.runtime_registry import catalog_provider_registry
 from sundarr.app.services.catalog_cache import catalog_cache
+
 from sundarr_official_plugins.douban_catalog import (
     DoubanCatalogProvider,
     DoubanProviderError,
 )
 from sundarr_official_plugins.douban_catalog.provider import _https_url
-
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = Path(__file__).parent / "fixtures" / "douban" / "responses.json"
@@ -48,8 +47,9 @@ def _fixture() -> dict[str, object]:
 
 
 class FixtureHttpClient:
-    def __init__(self) -> None:
+    def __init__(self, *, empty_mobile_search: bool = False) -> None:
         self.calls: list[tuple[str, dict[str, list[str]], dict[str, str]]] = []
+        self.empty_mobile_search = empty_mobile_search
 
     async def get_json(self, url: str, *, headers: dict[str, str] | None = None):
         parsed = urlparse(url)
@@ -60,30 +60,65 @@ class FixtureHttpClient:
         assert request_headers["Referer"].startswith("https://")
         payload = _fixture()
         if parsed.path == "/rexxar/api/v2/search":
+            if self.empty_mobile_search:
+                return {"subjects": {"items": []}}
             items = []
             for suggestion in deepcopy(payload["suggestions"]):
                 target_type = suggestion.pop("type")
                 suggestion["cover_url"] = suggestion.pop("img", None)
                 items.append({"target_type": target_type, "target": suggestion})
             return {"subjects": {"items": items}}
-        if parsed.path == "/j/search_subjects":
+        if parsed.path.startswith("/rexxar/api/v2/subject_collection/"):
             rows = payload[
-                "movie_subjects" if query.get("type") == ["movie"] else "series_subjects"
+                "movie_subjects" if "movie_hot_gaia" in parsed.path else "series_subjects"
             ]
-            start = int(query.get("page_start", ["0"])[0])
-            limit = int(query.get("page_limit", ["20"])[0])
-            return {"subjects": deepcopy(rows[start : start + limit])}
-        if parsed.path == "/j/new_search_subjects":
-            tags = query.get("tags", [""])[0].split(",")
-            rows = payload["movie_subjects" if tags[0] == "电影" else "series_subjects"]
             start = int(query.get("start", ["0"])[0])
-            limit = int(query.get("limit", ["20"])[0])
-            return {"data": deepcopy(rows[start : start + limit])}
+            limit = int(query.get("count", ["20"])[0])
+            return {"subject_collection_items": deepcopy(rows[start : start + limit])}
+        if parsed.path in {"/rexxar/api/v2/movie/recommend", "/rexxar/api/v2/tv/recommend"}:
+            rows = payload[
+                "movie_subjects" if parsed.path.endswith("movie/recommend") else "series_subjects"
+            ]
+            start = int(query.get("start", ["0"])[0])
+            limit = int(query.get("count", ["20"])[0])
+            result = []
+            if start == 0:
+                result.append({"card": "chart", "id": "ignored", "title": "榜单卡片"})
+            for row in deepcopy(rows[start : start + limit]):
+                row["card"] = "subject"
+                row["item_type"] = "movie" if parsed.path.endswith("movie/recommend") else "tv"
+                result.append(row)
+            return {"items": result}
         if parsed.path == "/rexxar/api/v2/movie/1889243":
             return deepcopy(payload["movie_detail"])
         if parsed.path == "/rexxar/api/v2/tv/35588177":
             return deepcopy(payload["series_detail"])
         raise AssertionError(f"未声明离线豆瓣路由：{parsed.path}")
+
+    async def get_text(self, url: str, *, headers: dict[str, str] | None = None):
+        parsed = urlparse(url)
+        query = parse_qs(parsed.query)
+        request_headers = dict(headers or {})
+        self.calls.append((parsed.path, query, request_headers))
+        assert parsed.path == "/movie/subject_search"
+        assert request_headers["Referer"] == "https://search.douban.com/"
+        payload = _fixture()
+        rows = []
+        for index, suggestion in enumerate(payload["suggestions"]):
+            if suggestion["type"] not in {"movie", "tv"}:
+                continue
+            rows.append(
+                {
+                    "id": int(suggestion["id"]),
+                    "title": f"{suggestion['title']} ({suggestion['year']})",
+                    "cover_url": suggestion.get("img"),
+                    "rating": {"value": 8.8, "count": 100},
+                    "tpl_name": "search_subject",
+                    "more_url": f"onclick=\"moreurl(this,{{is_tv:'{1 if suggestion['type'] == 'tv' else 0}'}})\"",
+                    "index": index,
+                }
+            )
+        return f"<script>window.__DATA__ = {json.dumps({'count': len(rows), 'items': rows})};</script>"
 
 
 class FixtureHttpFactory:
@@ -207,6 +242,20 @@ def test_search_maps_types_filters_year_and_resumes() -> None:
     asyncio.run(run())
 
 
+def test_empty_mobile_search_falls_back_to_web_embedded_data() -> None:
+    async def run() -> None:
+        client = FixtureHttpClient(empty_mobile_search=True)
+        provider = await _provider(client)
+        page = await provider.search(
+            CatalogQuery(keyword="情书", media_type=MediaType.MOVIE, limit=10)
+        )
+        assert page.items
+        assert page.items[0].year == 2014
+        assert any(call[0] == "/movie/subject_search" for call in client.calls)
+
+    asyncio.run(run())
+
+
 def test_unsupported_filters_are_not_silently_ignored() -> None:
     async def run() -> None:
         provider = await _provider()
@@ -247,9 +296,12 @@ def test_trending_and_categories_map_pagination_tags_and_sort() -> None:
             )
         )
         assert categories.items[0].media_type is MediaType.SERIES
-        category_call = next(call for call in client.calls if call[0] == "/j/new_search_subjects")
-        assert category_call[1]["tags"] == ["电视剧,犯罪,剧情"]
+        category_call = next(
+            call for call in client.calls if call[0] == "/rexxar/api/v2/tv/recommend"
+        )
+        assert category_call[1]["tags"] == ["犯罪,剧情"]
         assert category_call[1]["sort"] == ["R"]
+        assert all(item.external_id != "ignored" for item in categories.items)
 
     asyncio.run(run())
 

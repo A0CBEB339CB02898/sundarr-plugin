@@ -29,9 +29,9 @@ from sundarr.app.plugins.contracts import (
     PluginHealthResult,
 )
 
-
 MOVIE_BASE_URL = "https://movie.douban.com"
 MOBILE_BASE_URL = "https://m.douban.com"
+SEARCH_BASE_URL = "https://search.douban.com"
 _USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -80,6 +80,13 @@ class JsonHttpClient(Protocol):
         headers: dict[str, str] | None = None,
     ) -> Any: ...
 
+    async def get_text(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> str: ...
+
 
 class DoubanProviderError(RuntimeError):
     """豆瓣调用或响应无法满足公共合同。"""
@@ -104,13 +111,13 @@ class DoubanCatalogProvider:
         """用最小公开请求确认当前候选可以访问目录响应。"""
 
         payload = _require_mapping(
-            await self._request_movie(
-                "/j/search_subjects",
-                {"type": "movie", "tag": "热门", "page_limit": 1, "page_start": 0},
+            await self._request_mobile(
+                "/rexxar/api/v2/subject_collection/movie_hot_gaia/items",
+                {"start": 0, "count": 1},
             ),
             "初始化",
         )
-        _require_sequence(payload.get("subjects"), "初始化.subjects")
+        _require_sequence(payload.get("subject_collection_items"), "初始化.subject_collection_items")
         self._initialized = True
 
     def describe_capabilities(self) -> CatalogCapabilities:
@@ -166,15 +173,34 @@ class DoubanCatalogProvider:
             raise ValueError("豆瓣搜索必须提供关键词")
         signature = _query_signature("search", query)
         offset = _decode_offset_token(query.continuation_token, signature, "search")
-        payload = _require_mapping(
-            await self._request_mobile(
-                "/rexxar/api/v2/search",
-                {"q": keyword, "start": 0, "count": 50},
-            ),
-            "search",
-        )
-        subjects = _require_mapping(payload.get("subjects"), "search.subjects")
-        rows = _require_sequence(subjects.get("items"), "search.subjects.items")
+        items = await self._search_mobile(keyword, query)
+        if not items:
+            items = await self._search_web(keyword, query)
+        page_items = tuple(items[offset : offset + query.limit])
+        next_offset = offset + len(page_items)
+        continuation = None
+        if next_offset < len(items):
+            continuation = _encode_offset_token(signature, "search", next_offset)
+        return CatalogPage(items=page_items, continuation_token=continuation)
+
+    async def _search_mobile(
+        self,
+        keyword: str,
+        query: CatalogQuery,
+    ) -> list[CatalogItem]:
+        try:
+            payload = _require_mapping(
+                await self._request_mobile(
+                    "/rexxar/api/v2/search",
+                    {"q": keyword, "start": 0, "count": 50},
+                ),
+                "search",
+            )
+            subjects = _require_mapping(payload.get("subjects"), "search.subjects")
+            rows = _require_sequence(subjects.get("items"), "search.subjects.items")
+        except DoubanProviderError as exc:
+            self._logger.warning("豆瓣移动端搜索不可用，尝试网页搜索降级：%s", type(exc).__name__)
+            return []
         items: list[CatalogItem] = []
         for row in rows:
             if not isinstance(row, Mapping):
@@ -189,12 +215,35 @@ class DoubanCatalogProvider:
                 items.append(self._map_summary(raw, media_type, suggestion=True))
             except (TypeError, ValueError, DoubanProviderError) as exc:
                 self._logger.warning("豆瓣 search 跳过无法映射的目录项：%s", type(exc).__name__)
-        page_items = tuple(items[offset : offset + query.limit])
-        next_offset = offset + len(page_items)
-        continuation = None
-        if next_offset < len(items):
-            continuation = _encode_offset_token(signature, "search", next_offset)
-        return CatalogPage(items=page_items, continuation_token=continuation)
+        return items
+
+    async def _search_web(
+        self,
+        keyword: str,
+        query: CatalogQuery,
+    ) -> list[CatalogItem]:
+        html = await self._request_text(
+            SEARCH_BASE_URL,
+            "/movie/subject_search",
+            {"search_text": keyword, "cat": 1002, "start": 0},
+        )
+        payload = _extract_window_data(html)
+        rows = _require_sequence(payload.get("items"), "网页 search.items")
+        items: list[CatalogItem] = []
+        for raw in rows:
+            if not isinstance(raw, Mapping) or raw.get("tpl_name") != "search_subject":
+                continue
+            media_type = _web_search_media_type(raw)
+            normalized = dict(raw)
+            normalized["year"] = _parse_year(raw.get("title"))
+            normalized["title"] = _search_title(raw.get("title"))
+            if not _matches_search(normalized, media_type, query):
+                continue
+            try:
+                items.append(self._map_summary(normalized, media_type, suggestion=True))
+            except (TypeError, ValueError, DoubanProviderError) as exc:
+                self._logger.warning("豆瓣网页 search 跳过无法映射的目录项：%s", type(exc).__name__)
+        return items
 
     async def trending(self, query: CatalogQuery) -> CatalogPage:
         self._require_initialized()
@@ -265,19 +314,18 @@ class DoubanCatalogProvider:
         start: int,
         limit: int,
     ) -> tuple[tuple[CatalogItem, ...], int | None]:
+        collection = "movie_hot_gaia" if media_type is MediaType.MOVIE else "tv_hot"
         payload = _require_mapping(
-            await self._request_movie(
-                "/j/search_subjects",
-                {
-                    "type": "movie" if media_type is MediaType.MOVIE else "tv",
-                    "tag": "热门",
-                    "page_limit": limit,
-                    "page_start": start,
-                },
+            await self._request_mobile(
+                f"/rexxar/api/v2/subject_collection/{collection}/items",
+                {"start": start, "count": limit},
             ),
             "trending",
         )
-        rows = _require_sequence(payload.get("subjects"), "trending.subjects")
+        rows = _require_sequence(
+            payload.get("subject_collection_items"),
+            "trending.subject_collection_items",
+        )
         items = self._map_rows(rows, media_type)
         return items, start + len(rows) if len(rows) >= limit else None
 
@@ -289,24 +337,28 @@ class DoubanCatalogProvider:
     ) -> tuple[tuple[CatalogItem, ...], int | None]:
         if query.media_type is None:
             raise ValueError("分类查询缺少媒体类型")
-        tags = ["电影" if query.media_type is MediaType.MOVIE else "电视剧"]
-        if query.genres:
-            tags.extend(query.genres)
+        kind = "movie" if query.media_type is MediaType.MOVIE else "tv"
         payload = _require_mapping(
-            await self._request_movie(
-                "/j/new_search_subjects",
+            await self._request_mobile(
+                f"/rexxar/api/v2/{kind}/recommend",
                 {
                     "sort": _douban_sort(query.sort),
-                    "range": "0,10",
-                    "tags": ",".join(tags),
+                    "tags": ",".join(query.genres) if query.genres else None,
                     "start": start,
-                    "limit": limit,
+                    "count": limit,
                 },
             ),
             "categories",
         )
-        rows = _require_sequence(payload.get("data"), "categories.data")
-        items = self._map_rows(rows, query.media_type)
+        rows = _require_sequence(payload.get("items"), "categories.items")
+        subject_rows = [
+            row
+            for row in rows
+            if isinstance(row, Mapping)
+            and row.get("card") == "subject"
+            and _media_type(row.get("item_type") or row.get("type")) is query.media_type
+        ]
+        items = self._map_rows(subject_rows, query.media_type)
         return items, start + len(rows) if len(rows) >= limit else None
 
     async def _mixed_page(self, operation: str, query: CatalogQuery) -> CatalogPage:
@@ -414,11 +466,19 @@ class DoubanCatalogProvider:
         title = _optional_text(raw.get("title"))
         if title is None:
             raise DoubanProviderError("豆瓣目录项缺少标题")
-        year = _parse_year(raw.get("year")) if suggestion else None
+        year = _parse_year(raw.get("year"))
         poster_url = _https_url(raw.get("img" if suggestion else "cover"))
         if suggestion and poster_url is None:
             poster_url = _https_url(raw.get("cover_url"))
-        original_title = _optional_text(raw.get("sub_title")) if suggestion else None
+        cover = raw.get("cover")
+        if poster_url is None and isinstance(cover, Mapping):
+            poster_url = _https_url(cover.get("url"))
+        pic = raw.get("pic")
+        if poster_url is None and isinstance(pic, Mapping):
+            poster_url = _https_url(pic.get("large")) or _https_url(pic.get("normal"))
+        original_title = _optional_text(
+            raw.get("sub_title") if suggestion else raw.get("original_title")
+        )
         rating_payload = raw.get("rating")
         rating_map = rating_payload if isinstance(rating_payload, Mapping) else {}
         rating = _rating(raw.get("rate")) or _rating(rating_map.get("value"))
@@ -495,6 +555,34 @@ class DoubanCatalogProvider:
         params: Mapping[str, object] | None = None,
     ) -> Any:
         return await self._request(MOBILE_BASE_URL, path, params)
+
+    async def _request_text(
+        self,
+        base_url: str,
+        path: str,
+        params: Mapping[str, object] | None = None,
+    ) -> str:
+        query = urlencode(
+            [(key, str(value)) for key, value in (params or {}).items() if value is not None]
+        )
+        url = f"{base_url}{path}{'?' + query if query else ''}"
+        get_text = getattr(self._http, "get_text", None)
+        if not callable(get_text):
+            raise DoubanProviderError("Core HTTP 能力不支持豆瓣网页搜索降级")
+        try:
+            html = await get_text(
+                url,
+                headers={
+                    "Accept": "text/html,application/xhtml+xml",
+                    "Referer": "https://search.douban.com/",
+                    "User-Agent": _USER_AGENT,
+                },
+            )
+        except Exception as exc:
+            raise DoubanProviderError(f"豆瓣网页请求失败（{type(exc).__name__}）") from exc
+        if not isinstance(html, str) or not html.strip():
+            raise DoubanProviderError("豆瓣网页响应为空")
+        return html
 
     async def _request(
         self,
@@ -583,6 +671,36 @@ def _media_type(value: object) -> MediaType | None:
     return None
 
 
+def _extract_window_data(html: str) -> Mapping[str, Any]:
+    """提取豆瓣搜索页内嵌 JSON；使用 JSON 解码器避免贪婪正则跨脚本匹配。"""
+
+    marker = "window.__DATA__"
+    marker_index = html.find(marker)
+    if marker_index < 0:
+        raise DoubanProviderError("豆瓣网页搜索响应缺少 window.__DATA__")
+    assignment_index = html.find("=", marker_index + len(marker))
+    if assignment_index < 0:
+        raise DoubanProviderError("豆瓣网页搜索数据声明无效")
+    payload_text = html[assignment_index + 1 :].lstrip()
+    try:
+        payload, _ = json.JSONDecoder().raw_decode(payload_text)
+    except json.JSONDecodeError as exc:
+        raise DoubanProviderError("豆瓣网页搜索数据不是有效 JSON") from exc
+    return _require_mapping(payload, "网页 search")
+
+
+def _web_search_media_type(raw: Mapping[str, Any]) -> MediaType:
+    more_url = _optional_text(raw.get("more_url")) or ""
+    return MediaType.SERIES if re.search(r"is_tv\s*:\s*['\"]1['\"]", more_url) else MediaType.MOVIE
+
+
+def _search_title(value: object) -> str | None:
+    title = _optional_text(value)
+    if title is None:
+        return None
+    return re.sub(r"\s*[\u200e\u200f]?\s*\(\d{4}\)\s*$", "", title).strip() or None
+
+
 def _matches_search(
     raw: Mapping[str, Any],
     media_type: MediaType,
@@ -593,9 +711,7 @@ def _matches_search(
     year = _parse_year(raw.get("year"))
     if query.year_from is not None and (year is None or year < query.year_from):
         return False
-    if query.year_to is not None and (year is None or year > query.year_to):
-        return False
-    return True
+    return query.year_to is None or (year is not None and year <= query.year_to)
 
 
 def _douban_sort(sort: CatalogSort | None) -> str:
@@ -667,7 +783,7 @@ def _decode_token(token: str) -> dict[str, object]:
     except (binascii.Error, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("豆瓣 continuation_token 无效") from exc
     if not isinstance(payload, dict):
-        raise ValueError("豆瓣 continuation_token 无效")
+        raise ValueError("豆瓣 continuation_token 无效")  # noqa: TRY004 - 统一令牌错误合同
     return payload
 
 

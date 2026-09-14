@@ -5,15 +5,14 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from sundarr.app.plugins.conformance import (
     CatalogConformanceProbe,
     run_catalog_provider_conformance,
 )
 from sundarr.app.plugins.contracts import CatalogQuery, CatalogSort, MediaType
 from sundarr.app.plugins.http import PluginHttpClient
-from sundarr_official_plugins.douban_catalog import DoubanCatalogProvider
 
+from sundarr_official_plugins.douban_catalog import DoubanCatalogProvider
 
 pytestmark = pytest.mark.live
 
